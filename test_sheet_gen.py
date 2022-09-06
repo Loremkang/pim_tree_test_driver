@@ -17,7 +17,7 @@ bs = "batch_size"
 # global default values
 idxs = ("pim_tree", "range_partitioning")
 ops = ("micro_predecessor", "micro_insert")
-skews = (0.0, 1.0)
+skews = [f'{i:.1f}' for i in (0.0, 1.0)]
 target = ("throughput",)
 batch_size = (1000000,)
 
@@ -27,12 +27,20 @@ from math import nan
 columns = []
 
 def test_target_setup(tests, target):
-    throughput_stats = dict(throughput=nan)
-    comm_stats = dict(comm_dram=nan, comm_pim=nan)
-    component_time_stats = dict(time_cpu=nan, time_comm=nan, time_pim=nan)
-    energy_stats = dict(energy_cpu=nan, energy_comm=nan, energy_pim=nan)
 
     target_requirement=dict(test_throughput="throughput" in target, test_communication="comm" in target, test_component_time="component_time" in target, test_energy="energy" in target)
+
+    val = "nan" if target_requirement["test_throughput"] else ""
+    throughput_stats = dict(throughput=val)
+
+    val = "nan" if target_requirement["test_communication"] else ""
+    comm_stats = dict(comm_dram=val, comm_pim=val)
+
+    val = "nan" if target_requirement["test_component_time"] else ""
+    component_time_stats = dict(time_cpu=val, time_comm=val, time_pim=val)
+
+    val = "nan" if target_requirement["test_energy"] else ""
+    energy_stats = dict(energy_cpu=val, energy_comm=val, energy_pim=val)
 
     global columns
     assert(len(tests) > 0)
@@ -44,7 +52,7 @@ def test_target_setup(tests, target):
 
 class TestGenerator(object):
     def throughput_over_bias_between_pim_and_range(self):
-        skews = np.arange(0, 1.2, 0.2)
+        skews = [f'{i:.1f}' for i in np.arange(0, 1.2, 0.2)]
         ops = ("micro_get", "micro_predecessor", "micro_insert", "micro_delete", "micro_scan")
         tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
         return test_target_setup(tests, target)
@@ -74,7 +82,7 @@ class TestGenerator(object):
         return test_target_setup(tests, target)
 
     def energy(self):
-        skews = (0.0, 0.6, 1.0)
+        skews = [f'{i:.1f}' for i in (0.0, 0.6, 1.0)]
         target = ("energy",)
         ops = ("micro_predecessor", "micro_insert", "micro_scan")
         tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
@@ -82,7 +90,7 @@ class TestGenerator(object):
 
     def wikipedia(self):
         idxs = ("pim_tree", "ab-tree", "bst")
-        ops = ("wiki",)
+        ops = ("wiki_predecessor", "wiki_insert")
         target = ("throughput", "comm")
         tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
         # json_print(tests)
@@ -91,7 +99,7 @@ class TestGenerator(object):
     def communication_over_different_batch_size(self):
         idxs = ("pim_tree",)
         ops = ("micro_predecessor",)
-        skews = (0.0,)
+        skews = [f'{i:.1f}' for i in (0.0,)]
         target = ("comm",)
         batch_size = (1000000, 500000, 200000, 100000, 50000, 20000)
         tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
