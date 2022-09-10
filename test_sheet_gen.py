@@ -13,6 +13,7 @@ ot = "op_type"
 sk = "skew"
 tgt = "target"
 bs = "batch_size"
+es = "evaluation_set_size"
 
 # global default values
 idxs = ("pim_tree", "range_partitioning")
@@ -20,6 +21,7 @@ ops = ("micro_predecessor", "micro_insert")
 skews = [f'{i:.1f}' for i in (0.0, 1.0)]
 target = ("throughput",)
 batch_size = (1000000,)
+evaluation_set_size = (100000000,)
 
 # nan = 0
 from math import nan
@@ -52,32 +54,33 @@ def test_target_setup(tests, target):
 
 class TestGenerator(object):
     def throughput_over_bias_between_pim_and_range(self):
-        skews = [f'{i:.1f}' for i in np.arange(0, 1.2, 0.2)]
+        skews = [f'{i:.1f}' for i in np.arange(0, 1.4, 0.2)]
         ops = ("micro_get", "micro_predecessor", "micro_insert", "micro_delete", "micro_scan")
-        tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
+        tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         return test_target_setup(tests, target)
 
     def effect_of_optimizations(self):
         idxs = ("jump_push", "push_pull", "push_pull_chunk", "push_pull_chunk_shadow", "pim_tree")
-        tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
+        tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         # json_print(tests)
         return test_target_setup(tests, target)
 
     def component_time(self):
+        idxs = ("pim_tree", "range_partitioning")
         target = ("component_time",)
-        tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
+        tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         return test_target_setup(tests, target)
 
     def ycsb(self):
-        ops = ("ycsb_" + s for s in map(chr, range(ord("A"), ord("E") + 1)))
-        tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
+        ops = ("ycsb_" + s for s in map(chr, range(ord("a"), ord("e") + 1)))
+        tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         # json_print(tests)
         return test_target_setup(tests, target)
 
     def communication(self):
         idxs = ("pim_tree", "range_partitioning", "ab-tree", "bst")
         target = ("comm",)
-        tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
+        tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         # json_print(tests)
         return test_target_setup(tests, target)
 
@@ -85,14 +88,16 @@ class TestGenerator(object):
         skews = [f'{i:.1f}' for i in (0.0, 0.6, 1.0)]
         target = ("energy",)
         ops = ("micro_predecessor", "micro_insert", "micro_scan")
-        tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
+        tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         return test_target_setup(tests, target)
 
     def wikipedia(self):
+        evaluation_set_size = (200000000,)
         idxs = ("pim_tree", "ab-tree", "bst")
         ops = ("wiki_predecessor", "wiki_insert")
         target = ("throughput", "comm")
-        tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
+        skews = (0.0,)
+        tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         # json_print(tests)
         return test_target_setup(tests, target)
         
@@ -102,12 +107,12 @@ class TestGenerator(object):
         skews = [f'{i:.1f}' for i in (0.0,)]
         target = ("comm",)
         batch_size = (1000000, 500000, 200000, 100000, 50000, 20000)
-        tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
+        tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         return test_target_setup(tests, target)
 
     def throughput_with_traditional_indexes(self):
         idx = ("pim_tree", "ab-tree", "bst")
-        tests = [{it:i, ot:j, sk:k, bs:q} for i in idxs for j in ops for k in skews for q in batch_size]
+        tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         return test_target_setup(tests, target)
 
 tg = TestGenerator()

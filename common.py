@@ -12,12 +12,18 @@ def json_print(a):
     return
 
 pim_tree_source_folder = "/home/upmem0037/kanghongbo/code/fast_skip_list"
+# pim_tree_exec = os.path.join(pim_tree_source_folder, "build/pim_tree_host")
+
 range_partitioning_folder = "/home/upmem0037/kanghongbo/code/pim_skip_list_partitioned"
+# range_partitioning_exec = os.path.join(range_partitioning_folder, "build/fast_skip_list_host")
 
-jump_push_folder = ""
+before_chunking_folder = "/home/upmem0037/kanghongbo/code/before_chunking"
 
-microbenchmark_folder = "/scratch/pim_tree_data"
-microbenchmark_init_file = os.path.join(microbenchmark_folder, "init.insorted")
+benchmark_folder = "/scratch/pim_workloads"
+microbenchmark_init_file = os.path.join(benchmark_folder, "init.in")
+microbenchmark_init_file_sorted = os.path.join(benchmark_folder, "init.insorted")
+microbenchmark_folder = os.path.join(benchmark_folder, "micro")
+ycsb_folder = os.path.join(benchmark_folder, "ycsb")
 
 wiki_folder = "/scratch/wiki_data/"
 wiki_init_file = os.path.join(wiki_folder, "wiki_1000M_init.binary")
