@@ -14,6 +14,7 @@ sk = "skew"
 tgt = "target"
 bs = "batch_size"
 es = "evaluation_set_size"
+ts = "threshold"
 
 # global default values
 idxs = ("pim_tree", "range_partitioning")
@@ -39,14 +40,14 @@ def test_target_setup(tests, target):
     comm_stats = dict(comm_dram=val, comm_pim=val)
 
     val = "nan" if target_requirement["test_component_time"] else ""
-    component_time_stats = dict(time_cpu=val, time_comm=val, time_pim=val)
+    component_time_stats = dict(time_cpu=val, time_comm=val, time_load=val, time_pim=val)
 
     val = "nan" if target_requirement["test_energy"] else ""
     energy_stats = dict(energy_cpu=val, energy_comm=val, energy_pim=val)
 
     global columns
     assert(len(tests) > 0)
-    columns = list(tests[0].keys()) + list(target_requirement.keys()) + list(throughput_stats.keys()) + list(comm_stats.keys()) + list(component_time_stats.keys()) + list(energy_stats.keys())
+    columns = ["idx_type", "op_type", "skew", "batch_size", "evaluation_set_size", "threshold"] + list(target_requirement.keys()) + list(throughput_stats.keys()) + list(comm_stats.keys()) + list(component_time_stats.keys()) + list(energy_stats.keys())
 
     ret = [{**test, **target_requirement, **throughput_stats, **comm_stats, **component_time_stats, **energy_stats} for test in tests]
 
@@ -96,7 +97,7 @@ class TestGenerator(object):
         idxs = ("pim_tree", "ab-tree", "bst")
         ops = ("wiki_predecessor", "wiki_insert")
         target = ("throughput", "comm")
-        skews = (0.0,)
+        skews = (1.0,)
         tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         # json_print(tests)
         return test_target_setup(tests, target)
@@ -111,9 +112,20 @@ class TestGenerator(object):
         return test_target_setup(tests, target)
 
     def throughput_with_traditional_indexes(self):
-        idx = ("pim_tree", "ab-tree", "bst")
+        idxs = ("pim_tree", "ab-tree", "bst")
         tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         return test_target_setup(tests, target)
+    
+    def different_threshold(self):
+        idxs = ("pim_tree",)
+        ops = ("micro_predecessor",)
+        skews = (1.0,)
+        batch_size = (1000000,)
+        threshold = (8, 16, 24, 32)
+        target = ("throughput", "comm")
+        tests = [{it:i, ot:j, sk:k, bs:q, es:p, ts:t} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size for t in threshold]
+        return test_target_setup(tests, target)
+
 
 tg = TestGenerator()
 attrs = (getattr(tg, name) for name in dir(tg))

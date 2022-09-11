@@ -25,7 +25,7 @@ microbenchmark_init_file_sorted = os.path.join(benchmark_folder, "init.insorted"
 microbenchmark_folder = os.path.join(benchmark_folder, "micro")
 ycsb_folder = os.path.join(benchmark_folder, "ycsb")
 
-wiki_folder = "/scratch/wiki_data/"
+wiki_folder = os.path.join(benchmark_folder, "wiki")
 wiki_init_file = os.path.join(wiki_folder, "wiki_1000M_init.binary")
 wiki_predecessor_file = os.path.join(wiki_folder, "wiki_200M_predecessor.binary")
 wiki_insert_file = os.path.join(wiki_folder, "wiki_200M_insert.binary")

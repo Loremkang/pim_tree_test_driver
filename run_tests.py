@@ -45,15 +45,19 @@ def core_command_gen(test, pipeline):
     batch_size = test["batch_size"]
     op_type = test["op_type"]
     skew = test["skew"]
+    threshold = test["threshold"]
 
     if idx_type != "pim_tree" and batch_size != "1000000":
         raise Exception("Invalid batch size")
+
+    if threshold != "" and idx_type != "pim_tree":
+        raise Exception("Invalid threshold")
 
     # input file
     init_file = ""
     test_file = ""
     if "ycsb" in op_type:
-        # raise NotImplementedError("Automatic YCSB Test Not Implemented Yet!")
+        raise NotImplementedError("Automatic YCSB Test Not Implemented Yet!")
         if "partition" in test["idx_type"]:
             init_file = microbenchmark_init_file
         else:
@@ -79,6 +83,7 @@ def core_command_gen(test, pipeline):
             raise Exception(f'invalid micro op type: {op_type}')
         test_file = os.path.join(microbenchmark_folder, f'test_100000000_{skew}_{typeid}.binary')
     elif "wiki" in op_type:
+        init_file = wiki_init_file
         if "predecessor" in op_type:
             test_file = wiki_predecessor_file
         elif "insert" in op_type:
@@ -90,12 +95,12 @@ def core_command_gen(test, pipeline):
     if idx_type == "pim_tree":
         working_dir_switch(pim_tree_source_folder)
         if pipeline:
-            return f'./build/pim_tree_host -c -t -d --top_level_threads 2 -f {init_file} {test_file} --test_batch_size {batch_size}'
+            return f'./build/pim_tree_host -c -t -d --top_level_threads 2 -f {init_file} {test_file} --test_batch_size {batch_size} --push_pull_limit_dynamic {threshold}'
         else:
-            return f'./build/pim_tree_host -c -t -d --top_level_threads 1 -f {init_file} {test_file} --test_batch_size {batch_size}'
+            return f'./build/pim_tree_host -c -t -d --top_level_threads 1 -f {init_file} {test_file} --test_batch_size {batch_size} --push_pull_limit_dynamic {threshold}'
     elif idx_type == "range_partitioning":
         working_dir_switch(range_partitioning_folder)
-        return f'./build/fast_skip_list_host -c -t -d -f {init_file} {test_file}'
+        return f'./build/range_partitioning_skip_list_host -c -t -d -f {init_file} {test_file}'
     elif idx_type == "jump_push":
         working_dir_switch(before_chunking_folder)
         return f'./build/jump_push_skip_list_host -c -t -d --init_state -f {init_file} {test_file}'
@@ -134,7 +139,7 @@ def output_analysis(test, type, file):
             for idx, s in enumerate(str):
                 if "Timer -> global_exec:" in s:
                     print(s)
-                    total_time_str = s[idx + 2]
+                    total_time_str = str[idx + 2]
                     vals = rx.findall(total_time_str)
                     if len(vals) != 1:
                         raise RuntimeError("Invalid throughput str")
@@ -165,11 +170,11 @@ def output_analysis(test, type, file):
             raise EvaluationFailErorr("comm not found")
         return comm_dram, comm_pim
     elif type == "component_time":
-        time_cpu = time_pim = time_comm = 0.0
+        time_cpu = time_pim = time_comm = time_load = 0.0
         for idx, s in enumerate(str):
             if " -> exec -> dpu:" in s:
                 print(s)
-                total_time_str = s[idx + 2]                
+                total_time_str = str[idx + 2]                
                 vals = rx.findall(total_time_str)
                 if len(vals) != 1:
                     raise EvaluationFailErorr("Invalid component time dpu")
@@ -177,29 +182,39 @@ def output_analysis(test, type, file):
                 time_pim += total_time
             if " -> exec:" in s:
                 print(s)
-                total_time_str = s[idx + 2]                
+                total_time_str = str[idx + 2]                
                 vals = rx.findall(total_time_str)
                 if len(vals) != 1:
-                    raise EvaluationFailErorr("Invalid component time dpu")
+                    raise EvaluationFailErorr("Invalid component time comm")
                 total_time = float(vals[0])
                 time_comm += total_time
             if "Timer -> global_exec:" in s:
                 print(s)
-                total_time_str = s[idx + 2]
+                total_time_str = str[idx + 2]
                 vals = rx.findall(total_time_str)
                 if len(vals) != 1:
-                    raise EvaluationFailErorr("Invalid throughput str")
+                    raise EvaluationFailErorr("Invalid component time cpu")
                 total_time = float(vals[0])
                 time_cpu = total_time
+            if ("-> switchto4:" in s) or ("-> switchto1:" in s):
+                print(s)
+                total_time_str = str[idx + 2]
+                vals = rx.findall(total_time_str)
+                if len(vals) != 1:
+                    raise EvaluationFailErorr("Invalid component time load")
+                total_time = float(vals[0])
+                time_load = total_time
+
         if time_cpu == 0.0 or time_pim == 0.0 or time_comm == 0.0:
             raise EvaluationFailErorr("cpu/pim/comm not found")
         if time_comm <= time_pim:
             raise EvaluationFailErorr("Invalid component time comm < 0") 
-        if time_cpu <= time_comm:
+        if time_cpu <= time_comm + time_load:
             raise EvaluationFailErorr("Invalid component time comm+pim < 0") 
         time_cpu -= time_comm
+        time_cpu -= time_load
         time_comm -= time_pim
-        return time_cpu, time_comm, time_pim
+        return time_cpu, time_comm, time_load, time_pim
 
 class Test_Runner(object):
     def test_communication(self, tidx, test):
@@ -223,17 +238,17 @@ class Test_Runner(object):
     def test_component_time(self, tidx, test):
         if (test["test_component_time"] == "False"):
             return
-        if (test["time_cpu"], test["time_comm"], test["time_pim"]) != ("nan", "nan", "nan"):
+        if (test["time_cpu"], test["time_comm"], test["time_load"], test["time_pim"]) != ("nan", "nan", "nan", "nan"):
             return
         run_test_cmd = f'numactl --interleave=all {core_command_gen(test, pipeline=False)}'
         suffix = str(tidx) + "component_time"
         result_file = os.path.join(result_folder, f'{suffix}.txt')
         command_executor(f'{run_test_cmd} > {result_file}')
         try:
-            (test["time_cpu"], test["time_comm"], test["time_pim"]) = output_analysis(test, "component_time", result_file)
+            (test["time_cpu"], test["time_comm"], test["time_load"], test["time_pim"]) = output_analysis(test, "component_time", result_file)
         except EvaluationFailErorr as error:
             print(error)
-            (test["time_cpu"], test["time_comm"], test["time_pim"]) = ("nan", "nan", "nan")
+            (test["time_cpu"], test["time_comm"], test["time_load"], test["time_pim"]) = ("nan", "nan", "nan", "nan")
         save_results(suffix)
 
     def test_throughput(self, tidx, test):
@@ -266,6 +281,8 @@ def run_test(tidx, test):
     all_tests = []
     for method in methods:
         try:
+            if ("scan" in test["op_type"]):
+                raise NotImplementedError("Scan Skipped")
             if (test_traditional(test)):
                 raise NotImplementedError("Automatic Traditional Indexes Evaluation Not Implemented Yet!")
             method(tidx, test)

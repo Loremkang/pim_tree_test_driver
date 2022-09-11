@@ -26,13 +26,6 @@ rx = re.compile(numeric_const_pattern, re.VERBOSE)
 #         return (1, "1")
 #     else:
 #         return ("1", 1, 2.3)
-def isfloat(num):
-    try:
-        float(num)
-        return True
-    except ValueError:
-        return False
-
 all_tests = []
 with open(sys.argv[1], newline='') as csvfile:
     reader = csv.DictReader(csvfile)
@@ -40,13 +33,12 @@ with open(sys.argv[1], newline='') as csvfile:
     for row in reader:
         all_tests.append(row)
 
-for test in all_tests:
-    if isfloat(test["comm_dram"]):
-        comm_dram = float(test["comm_dram"])
-        comm_dram *= 64.0
-        test["comm_dram"] = comm_dram
+for idx, s in enumerate(columns):
+    if s == "test_throughput":
+        columns = columns[:idx] + ["threshold"] + columns[idx:]
+        break
 
-with open(f'results_16communication.csv', 'w+', newline='') as csvfile:
+with open(f'results_134_communication.csv', 'w+', newline='') as csvfile:
     fieldnames = columns
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
