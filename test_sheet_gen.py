@@ -69,6 +69,7 @@ class TestGenerator(object):
     def component_time(self):
         idxs = ("pim_tree", "range_partitioning")
         target = ("component_time",)
+        skews = ("0.0", "0.6")
         tests = [{it:i, ot:j, sk:k, bs:q, es:p} for i in idxs for j in ops for k in skews for q in batch_size for p in evaluation_set_size]
         return test_target_setup(tests, target)
 

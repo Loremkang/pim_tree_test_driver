@@ -91,13 +91,16 @@ def core_command_gen(test, pipeline):
         else:
             raise Exception(f'invalid wiki op type: {op_type}')
     
+    threshold_str = ""
+    if threshold != "":
+        threshold_str = f' --push_pull_limit_dynamic {threshold}'
 
     if idx_type == "pim_tree":
         working_dir_switch(pim_tree_source_folder)
         if pipeline:
-            return f'./build/pim_tree_host -c -t -d --top_level_threads 2 -f {init_file} {test_file} --test_batch_size {batch_size} --push_pull_limit_dynamic {threshold}'
+            return f'./build/pim_tree_host -c -t -d --top_level_threads 2 -f {init_file} {test_file} --test_batch_size {batch_size}{threshold_str}'
         else:
-            return f'./build/pim_tree_host -c -t -d --top_level_threads 1 -f {init_file} {test_file} --test_batch_size {batch_size} --push_pull_limit_dynamic {threshold}'
+            return f'./build/pim_tree_host -c -t -d --top_level_threads 1 -f {init_file} {test_file} --test_batch_size {batch_size}{threshold_str}'
     elif idx_type == "range_partitioning":
         working_dir_switch(range_partitioning_folder)
         return f'./build/range_partitioning_skip_list_host -c -t -d -f {init_file} {test_file}'
@@ -112,7 +115,7 @@ def core_command_gen(test, pipeline):
         return f'./build/pim_tree_host_no_shadow_subtree -c -t -d -f {init_file} {test_file}'
     elif idx_type == "push_pull_chunk_shadow":
         working_dir_switch(pim_tree_source_folder)
-        return f'./build/pim_tree_host -c -t -d --top_level_threads 1 -f {init_file} {test_file} --test_batch_size {batch_size}'
+        return f'./build/pim_tree_host -c -t -d --top_level_threads 1 -f {init_file} {test_file}{threshold_str}'
     else:
         raise Exception(f'invalid idx type: {idx_type}')
 

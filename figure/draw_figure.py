@@ -214,16 +214,16 @@ def component_time():
     
     skews = (0.0, 0.6)
 
-    pim_exec = [find_result(idt, s, opt, 1000000, "time_pim") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]
+    pim_exec = np.array([find_result(idt, s, opt, 1000000, "time_pim") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]) / 100
     # pim_exec = [0.009899, 0.284721, 0.014361, 0.454834, 0.02158, 0.01517237, 0.039296551, 0.032232897]
 
-    comm = [find_result(idt, s, opt, 1000000, "time_comm") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]
+    comm = np.array([find_result(idt, s, opt, 1000000, "time_comm") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]) / 100
     # comm = [0.006505, 0.115589, 0.004636, 0.082014, 0.02311, 0.033272158, 0.05725564, 0.066251297]
 
-    func_ld = [find_result(idt, s, opt, 1000000, "time_load") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]
+    func_ld = np.array([find_result(idt, s, opt, 1000000, "time_load") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]) / 100
     # func_ld = [0, 0, 0, 0, 0, 0, 0.0552144, 0.0601772]
 
-    cpu_exec = [find_result(idt, s, opt, 1000000, "time_cpu") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]
+    cpu_exec = np.array([find_result(idt, s, opt, 1000000, "time_cpu") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]) / 100
     # cpu_exec = [0.01285945, 0.01263035, 0.01844316, 0.01487307, 0.04648, 0.054067472, 0.066098409, 0.071179607]
 
     b1 = list_sum(pim_exec, comm)
@@ -655,6 +655,6 @@ with open('result.csv', newline='') as csvfile:
 # communication()
 # communication_over_different_batch_size()
 # wikipedia()
+component_time()
 
 # todo
-# component_time()
