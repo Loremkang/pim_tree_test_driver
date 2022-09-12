@@ -1,4 +1,7 @@
+import math
+from math import nan
 import csv
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -17,250 +20,150 @@ def list_sum(a, b):
 def divlist(a, b):
     return [i/b for i in a]
 
+def cache_line_to_bytes(a):
+    return [i * 64 for i in a]
+
+
 all_tests = []
-with open('result.csv', newline='') as csvfile:
-    reader = csv.DictReader(csvfile)
-    columns = reader.fieldnames
-    for row in reader:
-        all_tests.append(row)
 
 def find_result(idx_type, skew, op_type, batch_size, target):
     for test in all_tests:
-        if test["idx_type"] == idx_type and test["skew"] == str(skew) and test["op_type"] == op_type and test["batch_size"] == str(batch_size):
+        if test["idx_type"] == idx_type and test["skew"] == f'{skew:.1f}' and test["op_type"] == op_type and test["batch_size"] == str(batch_size):
             if test[target] == "" or test[target] == "nan" :
                 continue
             assert(test[target] != None)
-            return test[target]
+            if test[target] == 'fail':
+                return nan
+            return float(test[target])
     if idx_type == "range_partitioning" and op_type == "micro_insert" and target == "throughput":
         return 10000.0
+    print(idx_type, skew, op_type, batch_size, target)
     assert(False)
     # return 10000
 
-
 def throughput_over_bias_between_pim_and_range():
-    # Get
-    width = 0.35
-    comm_labels_ = ["", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
-    comm_labels = ["0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
-    pim_tree_time = [find_result("pim_tree", i, "micro_get", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
-    partitioned_time = [find_result("range_partitioning", i, "micro_get", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
-    # pim_tree_time = [2.63848, 2.83664, 2.78207, 2.77227, 2.61916, 2.75306, 2.62678]
-    # partitioned_time = [1.97127, 3.32832, 5.831623, 12.707024, 30.4211, 61.359808, 112.850589]
-    pim_tree = list(map(lambda x:100.0/x, pim_tree_time))
-    partitioned = list(map(lambda x:100.0/x, partitioned_time))
-    fig, ax = plt.subplots(figsize=(14, 8))
-    plt.grid(axis="y", linestyle='-.', zorder=0)
-    x = np.arange(len(comm_labels))
-    x1 = x - 0.5 * width
-    x2 = x + 0.5 * width
+    def throughput_over_bias_between_pim_and_range_single_type(op_type):
+        width = 0.35
+        comm_labels_ = ["", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
+        comm_labels = ["0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
+        pim_tree = np.array([find_result("pim_tree", i, op_type, 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]) / 1e6
+        partitioned = np.array([find_result("range_partitioning", i, op_type, 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]) / 1e6
+        # pim_tree_time = [2.63848, 2.83664, 2.78207, 2.77227, 2.61916, 2.75306, 2.62678]
+        # partitioned_time = [1.97127, 3.32832, 5.831623, 12.707024, 30.4211, 61.359808, 112.850589]
+        # pim_tree = list(map(lambda x:100.0/x, pim_tree_time))
+        # partitioned = list(map(lambda x:100.0/x, partitioned_time))
+        fig, ax = plt.subplots(figsize=(14, 8))
+        plt.grid(axis="y", linestyle='-.', zorder=0)
+        x = np.arange(len(comm_labels))
+        x1 = x - 0.5 * width
+        x2 = x + 0.5 * width
 
-    rects1 = ax.bar(x1, pim_tree, width, label="PIM-Tree", color='khaki', edgecolor='black', zorder=3)
-    rects2 = ax.bar(x2, partitioned, width, label="Partitioned Skip List", color='cornflowerblue', edgecolor='black', zorder=3)
-    ax.set_ylabel('Performance (Mop/s)', fontsize=40)
-    ax.set_xlabel(r"Parameter $\alpha$ in Zipfian Distribution", fontsize=40)
-    # ax.set_title('Performance of Get Operation', fontsize=25)
-    plt.gca().set_xticklabels(comm_labels_, fontsize=25)
-    plt.yticks(fontsize=30)
-    ax.legend(fontsize=30, bbox_to_anchor=(0.41, -0.18))
+        pim_tree_fig = [(i if not math.isnan(i) else 0) for i in pim_tree]
+        partitioned_fig = [(i if not math.isnan(i) else 0) for i in partitioned]
+        rects1 = ax.bar(x1, pim_tree_fig, width, label="PIM-Tree", color='khaki', edgecolor='black', zorder=3)
+        rects2 = ax.bar(x2, partitioned_fig, width, label="Partitioned Skip List", color='cornflowerblue', edgecolor='black', zorder=3)
+        ax.set_ylabel('Performance (Mop/s)', fontsize=40)
+        ax.set_xlabel(r"Parameter $\alpha$ in Zipfian Distribution", fontsize=40)
+        # ax.set_title('Performance of Get Operation', fontsize=25)
+        plt.gca().set_xticklabels(comm_labels_, fontsize=25)
+        plt.yticks(fontsize=30)
+        # ax.legend(fontsize=30, bbox_to_anchor=(0.41, -0.18))
 
-    prop = [i/j for i, j in zip(pim_tree, partitioned)]
-    ax2 = ax.twinx()
-    ax2.plot(x, prop, label="Improvements of PIM-Tree\n over Partitioned Skip List",
-        color='blue', ms=10, mfc='gold', lw=3, marker='o'
-    )
-    ax2.set_ylabel("Performance Improvement", fontsize=30)
-    ax2.semilogy()
-    plt.yticks(fontsize=30)
-    ax2.legend(fontsize=30, bbox_to_anchor=(1.05, -0.19))
-    for aa,bb in zip(x, prop):
-        plt.text(aa-0.1, bb*1.1, '%.2f' % bb, ha='center', va= 'bottom',
-            weight='demibold', fontsize=30
+        prop = [i/j for i, j in zip(pim_tree, partitioned)]
+        infinite_s = max(prop)
+        # print(infinite_s)
+        prop_fig = [(i if not math.isnan(i) else infinite_s) for i in prop] 
+        # print(prop_fig)
+
+        ax2 = ax.twinx()
+        ax2.plot(x, prop, label="Improvements of PIM-Tree\n over Partitioned Skip List",
+            color='blue', ms=10, mfc='gold', lw=3, marker='o'
         )
-    fig.tight_layout()
-    plt.savefig('get.pdf')
-    plt.show()
+        
+        # print(zip(x, prop))
+        z = list(zip(x, prop))
+        z_invalid = list(filter(lambda x : math.isnan(x[1]), z))
+        print(z_invalid)
+        ax2.plot([i[0] for i in z_invalid], [infinite_s] * len(z_invalid), color='red', ms=30, mfc='red', lw=4, marker='X')
 
-    # Predecessor
-    width = 0.35
-    comm_labels_ = ["", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
-    comm_labels = ["0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
-    pim_tree_time = [find_result("pim_tree", i, "micro_predecessor", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
-    partitioned_time = [find_result("range_partitioning", i, "micro_predecessor", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
-    # pim_tree_time = [7.01398, 7.54845, 8.29852, 8.10471, 8.0403, 8.01301, 7.74178]
-    # partitioned_time = [2.926345, 5.726836, 15.3712, 41.294035, 106.678085, 227.026608, 427.351839]
+        for aa,bb in zip(x, prop):
+            if math.isnan(bb):
+                plt.text(aa,  infinite_s*1.1, "Crash", ha='center', va= 'bottom',
+                    weight='demibold', fontsize=30
+                )
+            else:
+                plt.text(aa, bb*1.1, '%.2f' % bb, ha='center', va= 'bottom',
+                    weight='demibold', fontsize=30
+                )
+        ax2.set_ylabel("Performance Improvement", fontsize=30)
+        ax2.semilogy()
+        plt.yticks(fontsize=30)
+        # ax2.legend(fontsize=30, bbox_to_anchor=(1.05, -0.19))
 
-    pim_tree = list(map(lambda x:100.0/x, pim_tree_time))
-    partitioned = list(map(lambda x:100.0/x, partitioned_time))
-    fig, ax = plt.subplots(figsize=(14, 8))
-    plt.grid(axis="y", linestyle='-.', zorder=0)
-    x = np.arange(len(comm_labels))
-    x1 = x - 0.5 * width
-    x2 = x + 0.5 * width
+        h1, l1 = ax.get_legend_handles_labels()
+        h2, l2 = ax2.get_legend_handles_labels()
 
-    rects1 = ax.bar(x1, pim_tree, width, label="PIM-Tree", color='khaki', edgecolor='black', zorder=3)
-    rects2 = ax.bar(x2, partitioned, width, label="Partitioned Skip List", color='cornflowerblue', edgecolor='black', zorder=3)
-    ax.set_ylabel('Performance (Mop/s)', fontsize=40)
-    ax.set_xlabel(r"Parameter $\alpha$ in Zipfian Distribution", fontsize=40)
-    # ax.set_title('Performance of Get Operation', fontsize=25)
-    plt.gca().set_xticklabels(comm_labels_, fontsize=25)
-    plt.yticks(fontsize=30)
-    ax.legend(fontsize=30, bbox_to_anchor=(0.41, -0.18))
+        fig.tight_layout()
+        plt.savefig(f'micro/{op_type}.pdf')
+        plt.show()
 
-    prop = [i/j for i, j in zip(pim_tree, partitioned)]
-    ax2 = ax.twinx()
-    ax2.plot(x, prop, label="Improvements of PIM-Tree\n over Partitioned Skip List",
-        color='blue', ms=10, mfc='gold', lw=3, marker='o'
-    )
-    ax2.set_ylabel("Performance Improvement", fontsize=30)
-    ax2.semilogy()
-    plt.yticks(fontsize=30)
-    ax2.legend(fontsize=30, bbox_to_anchor=(1.05, -0.19))
-    for aa,bb in zip(x, prop):
-        plt.text(aa-0.1, bb*1.1, '%.2f' % bb, ha='center', va= 'bottom',
-            weight='demibold', fontsize=30
-        )
-    fig.tight_layout()
-    plt.savefig('predecessor.pdf')
-    plt.show()
+        # fig, ax = plt.subplots(figsize=(14, 8))
+        # ax.legend(h1, l1, loc='lower left', fontsize=30, bbox_to_anchor=(0.3, 0.65))
+        # ax2 = ax.twinx()
+        # ax2.legend(h2, l2, loc='lower left', fontsize=30, bbox_to_anchor=(0.3, 0.4))
+        # plt.savefig('micro_legend.pdf')
+        # plt.show()
 
+    if not os.path.exists("micro"):
+        os.mkdir("micro")
 
-    # Insert
-    width = 0.35
-    comm_labels_ = ["", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
-    comm_labels = ["0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
-    pim_tree_time = [find_result("pim_tree", i, "micro_insert", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
-    partitioned_time = [find_result("range_partitioning", i, "micro_insert", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
-    # pim_tree_time = [21.7865, 22.1249, 22.8191, 22.9841, 23.3308, 22.1934, 20.9148]
-    # partitioned_time = [3.744016, 6.848397, 19.276130, 55.172107, 142.772519, 10000, 10000]
-    pim_tree = list(map(lambda x:100.0/x, pim_tree_time))
-    partitioned = list(map(lambda x:100.0/x, partitioned_time))
-    fig, ax = plt.subplots(figsize=(14, 8))
-    plt.grid(axis="y", linestyle='-.', zorder=0)
-    x = np.arange(len(comm_labels))
-    x1 = x - 0.5 * width
-    x2 = x + 0.5 * width
-
-    rects1 = ax.bar(x1, pim_tree, width, label="PIM-Tree", color='khaki', edgecolor='black', zorder=3)
-    rects2 = ax.bar(x2, partitioned, width, label="Partitioned Skip List", color='cornflowerblue', edgecolor='black', zorder=3)
-    ax.set_ylabel('Performance (Mop/s)', fontsize=40)
-    ax.set_xlabel(r"Parameter $\alpha$ in Zipfian Distribution", fontsize=40)
-    # ax.set_title('Performance of Get Operation', fontsize=25)
-    plt.gca().set_xticklabels(comm_labels_, fontsize=25)
-    plt.yticks(fontsize=30)
-    ax.legend(fontsize=30, bbox_to_anchor=(0.4, -0.18))
-
-    ax2 = ax.twinx()
-    prop = [i/j for i, j in zip(pim_tree, partitioned)]
-    infinite_s = 12
-    prop[5] = infinite_s
-    prop[6] = infinite_s
-    ax2.plot(x, prop, label="Improvements of PIM-Tree\n over Partitioned Skip List",
-        color='blue', ms=10, mfc='gold', lw=3, marker='o'
-    )
-    for aa,bb in zip(x[0:5], prop[0:5]):
-        plt.text(aa-0.1, bb*1.1, '%.2f' % bb, ha='center', va= 'bottom',
-            weight='demibold', fontsize=30
-        )
-    prop = [infinite_s, infinite_s]
-    ax2.plot(x[5:], prop, color='red', ms=30, mfc='red', lw=4, marker='X')
-    for aa,bb in zip(x[6:], prop[1:]):
-        plt.text(aa-0.5, bb*1.1, "Crash", ha='center', va= 'bottom',
-            weight='demibold', fontsize=25
-        )
-    ax2.set_ylabel("Performance Improvement", fontsize=30)
-    ax2.semilogy()
-    plt.yticks(fontsize=30)
-    ax2.legend(fontsize=30, bbox_to_anchor=(1.06, -0.19))
-    fig.tight_layout()
-    plt.savefig('insert.pdf')
-    plt.show()
-
-
-    # Delete
-    width = 0.35
-    comm_labels_ = ["", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
-    comm_labels = ["0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
-    pim_tree_time = [find_result("pim_tree", i, "micro_delete", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
-    partitioned_time = [find_result("range_partitioning", i, "micro_delete", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
-    # pim_tree_time = [21.6145, 19.9634, 22.0515, 21.1322, 22.4551, 21.9978, 22.1464]
-    # partitioned_time = [1.727932, 2.634378, 5.874225, 15.380320, 31.333313, 55.941512, 80.489478]
-    pim_tree = list(map(lambda x:100.0/x, pim_tree_time))
-    partitioned = list(map(lambda x:100.0/x, partitioned_time))
-    fig, ax = plt.subplots(figsize=(14, 8))
-    plt.grid(axis="y", linestyle='-.', zorder=0)
-    x = np.arange(len(comm_labels))
-    x1 = x - 0.5 * width
-    x2 = x + 0.5 * width
-
-    rects1 = ax.bar(x1, pim_tree, width, label="PIM-Tree", color='khaki', edgecolor='black', zorder=3)
-    rects2 = ax.bar(x2, partitioned, width, label="Partitioned Skip List", color='cornflowerblue', edgecolor='black', zorder=3)
-    ax.set_ylabel('Performance (Mop/s)', fontsize=40)
-    ax.set_xlabel(r"Parameter $\alpha$ in Zipfian Distribution", fontsize=40)
-    # ax.set_title('Performance of Get Operation', fontsize=25)
-    plt.gca().set_xticklabels(comm_labels_, fontsize=25)
-    plt.yticks(fontsize=30)
-    ax.legend(fontsize=30, bbox_to_anchor=(0.4, -0.18))
-
-    prop = [i/j for i, j in zip(pim_tree, partitioned)]
-    ax2 = ax.twinx()
-    ax2.plot(x, prop, label="Improvements of PIM-Tree\n over Partitioned Skip List",
-        color='blue', ms=10, mfc='gold', lw=3, marker='o'
-    )
-    ax2.set_ylabel("Performance Improvement", fontsize=30)
-    ax2.semilogy()
-    plt.yticks(fontsize=30)
-    ax2.legend(fontsize=30, bbox_to_anchor=(1.06, -0.19))
-    for aa,bb in zip(x, prop):
-        plt.text(aa-0.1, bb*1.1, '%.2f' % bb, ha='center', va= 'bottom',
-            weight='demibold', fontsize=30
-        )
-    fig.tight_layout()
-    plt.savefig('delete.pdf')
-    plt.show()
-
-
-    # Scan
-    width = 0.35
-    comm_labels_ = ["", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
-    comm_labels = ["0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
-    pim_tree_time = [find_result("pim_tree", i, "micro_scan", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
-    partitioned_time = [find_result("range_partitioning", i, "micro_scan", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
+    # # Scan
+    # width = 0.35
+    # comm_labels_ = ["", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
+    # comm_labels = ["0", "0.2", "0.4", "0.6", "0.8", "1", "1.2"]
+    # # pim_tree_time = [find_result("pim_tree", i, "micro_scan", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
+    # # partitioned_time = [find_result("range_partitioning", i, "micro_scan", 1000000, "throughput") for i in np.arange(0.0, 1.4, 0.2)]
     # pim_tree_time = [5.02365, 4.9659, 4.82162, 4.91752, 5.048, 4.95622, 4.81891]
     # partitioned_time = [3.246511, 3.76592, 6.295967, 13.134908, 26.531106, 45.743774, 65.257307]
-    pim_tree = list(map(lambda x:100.0/x, pim_tree_time))
-    partitioned = list(map(lambda x:100.0/x, partitioned_time))
-    fig, ax = plt.subplots(figsize=(14, 8))
-    plt.grid(axis="y", linestyle='-.', zorder=0)
-    x = np.arange(len(comm_labels))
-    x1 = x - 0.5 * width
-    x2 = x + 0.5 * width
+    # pim_tree = list(map(lambda x:100.0/x, pim_tree_time))
+    # partitioned = list(map(lambda x:100.0/x, partitioned_time))
+    # fig, ax = plt.subplots(figsize=(14, 8))
+    # plt.grid(axis="y", linestyle='-.', zorder=0)
+    # x = np.arange(len(comm_labels))
+    # x1 = x - 0.5 * width
+    # x2 = x + 0.5 * width
 
-    rects1 = ax.bar(x1, pim_tree, width, label="PIM-Tree", color='khaki', edgecolor='black', zorder=3)
-    rects2 = ax.bar(x2, partitioned, width, label="Partitioned Skip List", color='cornflowerblue', edgecolor='black', zorder=3)
-    ax.set_ylabel('Performance (Mop/s)', fontsize=40)
-    ax.set_xlabel(r"Parameter $\alpha$ in Zipfian Distribution", fontsize=40)
-    # ax.set_title('Performance of Get Operation', fontsize=25)
-    plt.gca().set_xticklabels(comm_labels_, fontsize=25)
-    plt.yticks(fontsize=30)
-    ax.legend(fontsize=30, bbox_to_anchor=(0.41, -0.18))
+    # rects1 = ax.bar(x1, pim_tree, width, label="PIM-Tree", color='khaki', edgecolor='black', zorder=3)
+    # rects2 = ax.bar(x2, partitioned, width, label="Partitioned Skip List", color='cornflowerblue', edgecolor='black', zorder=3)
+    # ax.set_ylabel('Performance (Mop/s)', fontsize=40)
+    # ax.set_xlabel(r"Parameter $\alpha$ in Zipfian Distribution", fontsize=40)
+    # # ax.set_title('Performance of Get Operation', fontsize=25)
+    # plt.gca().set_xticklabels(comm_labels_, fontsize=25)
+    # plt.yticks(fontsize=30)
+    # # ax.legend(fontsize=30, bbox_to_anchor=(0.41, -0.18))
 
-    prop = [i/j for i, j in zip(pim_tree, partitioned)]
-    ax2 = ax.twinx()
-    ax2.plot(x, prop, label="Improvements of PIM-Tree\n over Partitioned Skip List",
-        color='blue', ms=10, mfc='gold', lw=3, marker='o'
-    )
-    ax2.set_ylabel("Performance Improvement", fontsize=30)
-    ax2.semilogy()
-    plt.yticks(fontsize=30)
-    ax2.legend(fontsize=30, bbox_to_anchor=(1.05, -0.19))
-    for aa,bb in zip(x, prop):
-        plt.text(aa-0.1, bb*1.1, '%.2f' % bb, ha='center', va= 'bottom',
-            weight='demibold', fontsize=30
-        )
-    fig.tight_layout()
-    plt.savefig('scan.pdf')
-    plt.show()
+    # prop = [i/j for i, j in zip(pim_tree, partitioned)]
+    # ax2 = ax.twinx()
+    # ax2.plot(x, prop, label="Improvements of PIM-Tree\n over Partitioned Skip List",
+    #     color='blue', ms=10, mfc='gold', lw=3, marker='o'
+    # )
+    # ax2.set_ylabel("Performance Improvement", fontsize=30)
+    # ax2.semilogy()
+    # plt.yticks(fontsize=30)
+    # # ax2.legend(fontsize=30, bbox_to_anchor=(1.05, -0.19))
+    # for aa,bb in zip(x, prop):
+    #     plt.text(aa-0.1, bb*1.1, '%.2f' % bb, ha='center', va= 'bottom',
+    #         weight='demibold', fontsize=30
+    #     )
+    # fig.tight_layout()
+    # plt.savefig('micro/micro_scan.pdf')
+    # plt.show()
 
+    throughput_over_bias_between_pim_and_range_single_type("micro_get")
+    throughput_over_bias_between_pim_and_range_single_type("micro_predecessor")
+    throughput_over_bias_between_pim_and_range_single_type("micro_insert")
+    throughput_over_bias_between_pim_and_range_single_type("micro_delete")
+    throughput_over_bias_between_pim_and_range_single_type("micro_scan")
 
 def throughput_with_traditional_indexes():
     # performance traditional
@@ -269,16 +172,11 @@ def throughput_with_traditional_indexes():
     comm_labels = ["", pred_str + alpha_0_str, "", pred_str + alpha_1_str, "", ins_str + alpha_0_str, "", ins_str + alpha_1_str]
     type_count = 4
 
-    pim_tree = [find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
-    # pim_tree = [7.01398, 8.01301, 21.7865, 22.1934]
-    pim_tree = divlist(pim_tree, 1e6)
-    #pim_tree = [2.63848, 2.83664, 2.78207, 2.77227]
-    ab_tree = [find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
-    # ab_tree = divlist(ab_tree, 1e6)
-    # ab_tree = [18.5271, 20.6315, 2.66731, 2.81355]
-    bst = [find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
-    # bst = divlist(bst, 1e6)
-    # bst = [6.2759, 7.13796, 2.74216, 2.8923]
+    pim_tree = np.array([find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
+    # ab_tree = np.array([find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
+    ab_tree = [18.5271, 20.6315, 2.66731, 2.81355]
+    # bst = np.array([find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
+    bst = [6.2759, 7.13796, 2.74216, 2.8923]
     fig, ax = plt.subplots(figsize=(14, 8))
     plt.grid(axis="y", linestyle='-.', zorder=0)
     x = np.arange(type_count)
@@ -314,16 +212,18 @@ def component_time():
     ]
     # y_labels = ["0", "0.1", "0.2", "0.3", "0.4", "0.5"]
     
-    pim_exec = [find_result(idt, s, opt, 1000000, "time_pim") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in (0, 0.6)]
+    skews = (0.0, 0.6)
+
+    pim_exec = [find_result(idt, s, opt, 1000000, "time_pim") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]
     # pim_exec = [0.009899, 0.284721, 0.014361, 0.454834, 0.02158, 0.01517237, 0.039296551, 0.032232897]
 
-    comm = [find_result(idt, s, opt, 1000000, "time_comm") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in (0, 0.6)]
+    comm = [find_result(idt, s, opt, 1000000, "time_comm") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]
     # comm = [0.006505, 0.115589, 0.004636, 0.082014, 0.02311, 0.033272158, 0.05725564, 0.066251297]
 
-    func_ld = [find_result(idt, s, opt, 1000000, "time_load") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in (0, 0.6)]
+    func_ld = [find_result(idt, s, opt, 1000000, "time_load") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]
     # func_ld = [0, 0, 0, 0, 0, 0, 0.0552144, 0.0601772]
 
-    cpu_exec = [find_result(idt, s, opt, 1000000, "time_cpu") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in (0, 0.6)]
+    cpu_exec = [find_result(idt, s, opt, 1000000, "time_cpu") for idt in ("range_partitioning", "pim_tree") for opt in ("micro_predecessor", "micro_insert") for s in skews]
     # cpu_exec = [0.01285945, 0.01263035, 0.01844316, 0.01487307, 0.04648, 0.054067472, 0.066098409, 0.071179607]
 
     b1 = list_sum(pim_exec, comm)
@@ -351,19 +251,19 @@ def effect_of_optimizations():
     width = 0.15
     comm_labels_ = ["", "", "Predecessor\n" + r'$\alpha=0$', "", "Predecessor\n" + r'$\alpha=1$', "", "Insert\n" + r'$\alpha=0$', "", "Insert\n" + r'$\alpha=1$']
     comm_labels = ["Predecessor\n" + r'$\alpha=0$', "Predecessor\n" + r'$\alpha=1$', "Insert\n" + r'$\alpha=0$', "Insert\n" + r'$\alpha=1$']
-    jump_push = [find_result("jump_push", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
+    jump_push = np.array([find_result("jump_push", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
     # jump_push = [222.294794, 224.528700, 255.410889, 260.711387]
 
-    push_pull = [find_result("push_pull", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
+    push_pull = np.array([find_result("push_pull", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
     # push_pull = [67.495015, 46.855559, 87.698647, 75.256654]
 
-    push_pull_chunk = [find_result("push_pull_chunk", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
+    push_pull_chunk = np.array([find_result("push_pull_chunk", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
     # push_pull_chunk = [11.5339, 10.6762, 22.3526, 21.0983]
     
-    push_pull_chunk_shadow = [find_result("push_pull_chunk_shadow", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
+    push_pull_chunk_shadow = np.array([find_result("push_pull_chunk_shadow", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
     # push_pull_chunk_shadow = [9.11693, 10.0665, 21.7865, 22.1934]
     
-    pim_tree = [find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
+    pim_tree = np.array([find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
     # pim_tree = [7.01398, 8.01301, 21.7865, 22.1934]
 
     # jump_push = [100.0/l for l in jump_push]
@@ -418,16 +318,16 @@ def communication():
     range_dram = [find_result("range_partitioning", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
     # range_dram = cache_line_to_bytes([0.61653026, 123.1151183, 1.17339381, 0])
     range_dram = list_sum(range_pim, range_dram)
-    range_dram = [min(i, 4000.0) for i in range_dram]
+    # range_dram = [min(i, 4000.0) for i in range_dram]
     # range_dram[1] = 0
 
-    ab_dram = [find_result("ab-tree", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
-    # ab_dram = [17.9261, 14.8452, 56.9125, 52.3052]
-    # ab_dram = [i * 64 for i in ab_dram]
+    # ab_dram = [find_result("ab-tree", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
+    ab_dram = [17.9261, 14.8452, 56.9125, 52.3052]
+    ab_dram = [i * 64 for i in ab_dram]
     
-    bst_dram = [find_result("bst", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
-    # bst_dram = [36.857, 30.7022, 43.7481, 39.8015]
-    # bst_dram = [i * 64 for i in bst_dram]
+    # bst_dram = [find_result("bst", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
+    bst_dram = [36.857, 30.7022, 43.7481, 39.8015]
+    bst_dram = [i * 64 for i in bst_dram]
 
     fig, ax = plt.subplots(figsize=(14, 8))
     plt.grid(axis="y", linestyle='-.', zorder=0)
@@ -443,12 +343,15 @@ def communication():
     rects4 = ax.bar(x2, range_pim, width, label="range-partitioning: CPU-PIM", color='gray', edgecolor='black', zorder=4)
     rects5 = ax.bar(x3, ab_dram, width, label="Brown (a,b)-Tree: CPU-DRAM", color='lightcoral', edgecolor='black', zorder=3)
     rects6 = ax.bar(x4, bst_dram, width, label="Bronson BST: CPU-DRAM", color='palegreen', edgecolor='black', zorder=3)
-    point = ax.scatter([x2[3]], 200, point_size, color='red', zorder=4, marker='X')
-    plt.text(x2[1], 200, ">1e4", ha='center', va= 'bottom',
-            weight='normal', fontsize=20)
+    # point = ax.scatter([x2[3]], 200, point_size, color='red', zorder=4, marker='X')
+    # plt.text(x2[3], 300, "Crash", ha='center', va= 'bottom', weight='bold', fontsize=20, zorder=5, color='red')
+    # plt.text(x2[3], 2000, ">1e4", ha='center', va= 'bottom',
+    #         weight='bold', fontsize=20, zorder=5, color='red')
+    # plt.text(x2[1], 2000, ">1e4", ha='center', va= 'bottom',
+    #         weight='bold', fontsize=20, zorder=5, color='red')
 
     ax.set_ylabel('Bytes Transmitted per Element', fontsize=30)
-    ax.set_ylim([0, 4000])
+    # ax.set_ylim([0, 4000])
     #ax.set_xlabel(r"Parameter $\alpha$ in Zipfian Distribution", fontsize=40)
     # ax.set_title('Performance of Get Operation', fontsize=25)
     plt.gca().set_xticklabels(comm_labels, fontsize=25)
@@ -470,7 +373,7 @@ def communication_over_different_batch_size():
     comm_labels = ["", "1M", "500K", "200K", "100K", "50K", "20K"]
     type_count = 6
 
-    num_communication = [find_result("pim_tree", "micro_predecessor", 0.0, bs, "comm_pim") for bs in (1000000, 500000, 200000, 100000, 50000, 20000)]
+    num_communication = [find_result("pim_tree", 0.0, "micro_predecessor", bs, "comm_dram") for bs in (1000000, 500000, 200000, 100000, 50000, 20000)]
     # num_communication = [2.20916, 1.99844, 2.5946, 3.79942, 5.77012, 7.25876]
     # num_communication.reverse()
     # num_communication = [i * 64 for i in num_communication]
@@ -621,8 +524,8 @@ def ycsb():
     # workload_C = [2.926345, 227.026608, 7.01398, 8.01301]
     workload_D = [find_result(idt, s, "ycsb_d", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
     # workload_D = [3.744016, 10000, 21.7865, 22.1934]
-    workload_E = [find_result(idt, s, "ycsb_e", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
-    # workload_E = [5, 5, 5, 5]
+    # workload_E = [find_result(idt, s, "ycsb_e", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
+    workload_E = [5, 5, 5, 5]
 
     # workload_A = [100.0/l for l in workload_A]
     # workload_B = [100.0/l for l in workload_B]
@@ -657,8 +560,6 @@ def ycsb():
     plt.savefig('YCSB.pdf')
     plt.show()
 
-#quit()
-
 def wikipedia():
     # wikipedia result
     width = 0.15
@@ -667,23 +568,23 @@ def wikipedia():
     type_count = 2
 
     # y_labels = ["0", "0.1", "0.2", "0.3", "0.4", "0.5"]
-    pim_tree_throughput = [find_result("pim_tree", 0.0, ops, 2000000, "throughput") for ops in ("wiki_predecessor", "wiki_insert")]
+    pim_tree_throughput = [i / 1e6 for i in (find_result("pim_tree", 1.0, ops, 2000000, "throughput") for ops in ("wiki_predecessor", "wiki_insert"))]
     # pim_tree_throughput = [22.636, 9.9333]
-    ab_tree_throughput = [find_result("ab-tree", 0.0, ops, 2000000, "throughput") for ops in ("wiki_predecessor", "wiki_insert")]
-    # ab_tree_throughput = [27.8993, 8.65881]
-    bst_tree_throughput = [find_result("bst", 0.0, ops, 2000000, "throughput") for ops in ("wiki_predecessor", "wiki_insert")]
-    # bst_tree_throughput = [17.8418, 5.14087]
+    # ab_tree_throughput = [find_result("ab-tree", 0.0, ops, 2000000, "throughput") for ops in ("wiki_predecessor", "wiki_insert")]
+    ab_tree_throughput = np.array([27.8993, 8.65881])
+    # bst_tree_throughput = [find_result("bst", 0.0, ops, 2000000, "throughput") for ops in ("wiki_predecessor", "wiki_insert")]
+    bst_tree_throughput = np.array([17.8418, 5.14087])
 
-    pim_tree_dram_communication = [find_result("pim_tree", 0.0, ops, 2000000, "comm_dram") for ops in ("wiki_predecessor", "wiki_insert")]
+    pim_tree_dram_communication = [find_result("pim_tree", 1.0, ops, 2000000, "comm_dram") for ops in ("wiki_predecessor", "wiki_insert")]
     # pim_tree_dram_communication = cache_line_to_bytes([4.6427859, 8.88064752])
-    pim_tree_pim_communication = [find_result("pim_tree", 0.0, ops, 2000000, "comm_pim") for ops in ("wiki_predecessor", "wiki_insert")]
+    pim_tree_pim_communication = [find_result("pim_tree", 1.0, ops, 2000000, "comm_pim") for ops in ("wiki_predecessor", "wiki_insert")]
     # pim_tree_pim_communication = [39.7901824, 129.63037184]
     pim_tree_communication = list_sum(pim_tree_dram_communication, pim_tree_pim_communication)
 
-    ab_tree_communication = [find_result("ab-tree", 0.0, ops, 2000000, "comm_dram") for ops in ("wiki_predecessor", "wiki_insert")]
-    # ab_tree_communication = cache_line_to_bytes([9.95039, 13.5635])
-    bst_tree_communication = [find_result("bst", 0.0, ops, 2000000, "comm_dram") for ops in ("wiki_predecessor", "wiki_insert")]
-    # bst_tree_communication = cache_line_to_bytes([12.76977, 31.8681])
+    # ab_tree_communication = [find_result("ab-tree", 0.0, ops, 2000000, "comm_dram") for ops in ("wiki_predecessor", "wiki_insert")]
+    ab_tree_communication = cache_line_to_bytes([9.95039, 13.5635])
+    # bst_tree_communication = [find_result("bst", 0.0, ops, 2000000, "comm_dram") for ops in ("wiki_predecessor", "wiki_insert")]
+    bst_tree_communication = cache_line_to_bytes([12.76977, 31.8681])
 
     #pim_pim = [102.0177888, 129.284592, 330.714192, 355.8748992]
     #pim_dram = [7.25876, 7.95643, 15.4922, 15.4922]
@@ -742,3 +643,18 @@ def wikipedia():
     plt.savefig('wikipedia_throughput.pdf')
     plt.show()
 
+with open('result.csv', newline='') as csvfile:
+    reader = csv.DictReader(csvfile)
+    columns = reader.fieldnames
+    for row in reader:
+        all_tests.append(row)
+
+# throughput_over_bias_between_pim_and_range()
+# throughput_with_traditional_indexes()
+# effect_of_optimizations()
+# communication()
+# communication_over_different_batch_size()
+# wikipedia()
+
+# todo
+# component_time()
