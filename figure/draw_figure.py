@@ -173,10 +173,8 @@ def throughput_with_traditional_indexes():
     type_count = 4
 
     pim_tree = np.array([find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
-    # ab_tree = np.array([find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
-    ab_tree = [18.5271, 20.6315, 2.66731, 2.81355]
-    # bst = np.array([find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
-    bst = [6.2759, 7.13796, 2.74216, 2.8923]
+    ab_tree = np.array([find_result("ab-tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
+    bst = np.array([find_result("bst", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
     fig, ax = plt.subplots(figsize=(14, 8))
     plt.grid(axis="y", linestyle='-.', zorder=0)
     x = np.arange(type_count)
@@ -321,13 +319,9 @@ def communication():
     # range_dram = [min(i, 4000.0) for i in range_dram]
     # range_dram[1] = 0
 
-    # ab_dram = [find_result("ab-tree", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
-    ab_dram = [17.9261, 14.8452, 56.9125, 52.3052]
-    ab_dram = [i * 64 for i in ab_dram]
+    ab_dram = [find_result("ab-tree", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
     
-    # bst_dram = [find_result("bst", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
-    bst_dram = [36.857, 30.7022, 43.7481, 39.8015]
-    bst_dram = [i * 64 for i in bst_dram]
+    bst_dram = [find_result("bst", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
 
     fig, ax = plt.subplots(figsize=(14, 8))
     plt.grid(axis="y", linestyle='-.', zorder=0)
@@ -652,9 +646,8 @@ with open('result.csv', newline='') as csvfile:
 # throughput_over_bias_between_pim_and_range()
 # throughput_with_traditional_indexes()
 # effect_of_optimizations()
-# communication()
+communication()
 # communication_over_different_batch_size()
 # wikipedia()
-component_time()
 
 # todo
