@@ -2,6 +2,7 @@ import math
 from math import nan
 import csv
 import os
+import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -26,9 +27,9 @@ def cache_line_to_bytes(a):
 
 all_tests = []
 
-def find_result(idx_type, skew, op_type, batch_size, target):
+def find_result(idx_type, skew, op_type, batch_size, target, threshold = ""):
     for test in all_tests:
-        if test["idx_type"] == idx_type and test["skew"] == f'{skew:.1f}' and test["op_type"] == op_type and test["batch_size"] == str(batch_size):
+        if test["idx_type"] == idx_type and test["skew"] == f'{skew:.1f}' and test["op_type"] == op_type and test["batch_size"] == str(batch_size) and test["threshold"] == threshold:
             if test[target] == "" or test[target] == "nan" :
                 continue
             assert(test[target] != None)
@@ -205,10 +206,10 @@ def component_time():
     # Time components
     width = 0.35
     comp_labels = [
-        "Search\nPartitioned\n" + r"$\alpha=0$", "Search\nPartitioned\n" + r"$\alpha=0.6$",
+        "Predecessor\nPartitioned\n" + r"$\alpha=0$", "Predecessor\nPartitioned\n" + r"$\alpha=0.6$",
         "Insert\nPartitioned\n" + r"$\alpha=0$", "Insert\nPartitioned\n" + r"$\alpha=0.6$",
-        "Search\nPIM-tree\n" + r"$\alpha=0$", "Search\nPIM-tree\n" + r"$\alpha=0.6$",
-        "Insert\nPIM-tree\n" + r"$\alpha=0$", "Insert\nPIM-tree\n" + r"$\alpha=0.6$",
+        "Predecessor\nPIM-Tree\n" + r"$\alpha=0$", "Predecessor\nPIM-Tree\n" + r"$\alpha=0.6$",
+        "Insert\nPIM-Tree\n" + r"$\alpha=0$", "Insert\nPIM-Tree\n" + r"$\alpha=0.6$",
     ]
     # y_labels = ["0", "0.1", "0.2", "0.3", "0.4", "0.5"]
     
@@ -284,16 +285,17 @@ def effect_of_optimizations():
     x4 = x + 1 * width
     x5 = x + 2 * width
 
-    rects1 = ax.bar(x1, jump_push, width, label=r'Jump-Push based', edgecolor='black', zorder=3, color="khaki")
-    rects2 = ax.bar(x2, push_pull, width, label=r'Push-Pull based', edgecolor='black', zorder=3, color="cornflowerblue")
+    rects1 = ax.bar(x1, jump_push, width, label=r'Jump-Push Based', edgecolor='black', zorder=3, color="khaki")
+    rects2 = ax.bar(x2, push_pull, width, label=r'Push-Pull Based', edgecolor='black', zorder=3, color="cornflowerblue")
     rects3 = ax.bar(x3, push_pull_chunk, width, label=r'Push-Pull + Chunk', edgecolor='black', zorder=3, color="palegreen")
     rects4 = ax.bar(x4, push_pull_chunk_shadow, width, label=r'Push-Pull + Chunk + Shadow', edgecolor='black', zorder=3, color="lightcoral")
-    rects5 = ax.bar(x5, pim_tree, width, label=r'PIM-tree', edgecolor='black', zorder=3, color="violet")
+    rects5 = ax.bar(x5, pim_tree, width, label=r'PIM-Tree', edgecolor='black', zorder=3, color="violet")
 
     ax.set_ylabel('Performance (Mop/s)', fontsize=30)
     #ax.set_title('Impact of Optimizations', fontsize=30)
     plt.gca().set_xticklabels(comm_labels_, fontsize=30)
-    ax.legend(fontsize=18, bbox_to_anchor=(0.5,0.78))
+    # ax.legend(fontsize=18, bbox_to_anchor=(0.5,0.78), weight='bold')
+    ax.legend(prop={"size": 19, 'weight':'bold'})
     fig.tight_layout()
 
     plt.savefig('optimization.pdf')
@@ -511,10 +513,10 @@ def energy():
 def ycsb():
     # YCSB
     width = 0.15
-    #comm_labels_ = ["", "PIM-tree", "", "Partitioned skip list"]
-    #comm_labels = ["PIM-tree", "Partitioned skip list"]
-    comm_labels_ = ["", "", "Partitioned\n" + r'$\alpha=0$', "", "Partitioned\n" + r'$\alpha=1$', "", "PIM-tree\n" + r'$\alpha=0$', "", "PIM-tree\n" + r'$\alpha=1$']
-    comm_labels = ["Partitioned\n" + r'$\alpha=0$', "Partitioned\n" + r'$\alpha=1$', "PIM-tree\n" + r'$\alpha=0$', "PIM-tree\n" + r'$\alpha=1$']
+    #comm_labels_ = ["", "PIM-Tree", "", "Partitioned skip list"]
+    #comm_labels = ["PIM-Tree", "Partitioned skip list"]
+    comm_labels_ = ["", "", "Partitioned\n" + r'$\alpha=0$', "", "Partitioned\n" + r'$\alpha=1$', "", "PIM-Tree\n" + r'$\alpha=0$', "", "PIM-Tree\n" + r'$\alpha=1$']
+    comm_labels = ["Partitioned\n" + r'$\alpha=0$', "Partitioned\n" + r'$\alpha=1$', "PIM-Tree\n" + r'$\alpha=0$', "PIM-Tree\n" + r'$\alpha=1$']
 
     workload_A = [find_result(idt, s, "ycsb_a", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
     # workload_A = [3.482651, 117.316418, 16.4503, 17.2022]
@@ -643,7 +645,70 @@ def wikipedia():
     plt.savefig('wikipedia_throughput.pdf')
     plt.show()
 
-with open('result.csv', newline='') as csvfile:
+def communication_over_different_threshold():
+    # Get with different batch size
+    width = 0.35
+    #comm_labels = ["", "20K", "50K", "100K", "200K", "500K", "1M"]
+    comm_labels = ["4", "8", "16", "24", "32", "40"]
+    type_count = 6
+
+    num_communication = [find_result("pim_tree", 1.0, "micro_predecessor", 1000000, "comm_pim", threshold=th) for th in ('4', '8', '16', '24', '32', '40')]
+    throughput = np.array([find_result("pim_tree", 1.0, "micro_predecessor", 1000000, "throughput", threshold=th) for th in ('4', '8', '16', '24', '32', '40')]) / 1e6
+    # num_communication = [2.20916, 1.99844, 2.5946, 3.79942, 5.77012, 7.25876]
+    # num_communication.reverse()
+    # num_communication = [i * 64 for i in num_communication]
+
+    fig, ax = plt.subplots(figsize=(14, 8))
+    plt.grid(axis="y", linestyle='-.', zorder=0)
+    x = np.arange(type_count)
+
+    rects = ax.bar(x, throughput, width, label="Throughput", color='cornflowerblue', edgecolor='black', zorder=3)
+    ax.set_ylim([10, 15])
+    ax2 = ax.twinx()
+    points = ax2.scatter(x, num_communication, point_size, label="CPU-PIM Communication", color='black', zorder=4, marker='P')
+
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+
+
+    ax.set_ylabel('Throughput (Mop/s)', fontsize=30)
+    ax2.set_ylabel('Bytes Transmitted per Operation', fontsize=30)
+    ax2.set_ylim([100, 200])
+    #ax.set_xlabel(r"Parameter $\alpha$ in Zipfian Distribution", fontsize=40)
+    # ax.set_title('Performance of Get Operation', fontsize=25)
+    # plt.gca().set_xticklabels(comm_labels, fontsize=30, rotation=90)
+    # plt.xticks(fontsize=30)
+    plt.xticks(ticks=x, labels=comm_labels, fontsize=60)
+    ax.tick_params(axis='x', labelsize=30)
+    ax.tick_params(axis='y', labelsize=30)
+    ax2.tick_params(axis='y', labelsize=30)
+    # plt.yticks(fontsize=30)
+    # ax.legend(bbox_to_anchor=(0.4,0.68))
+    ax2.legend(h1 + h2, l1 + l2, prop={"size": 19, 'weight':'bold'}, loc=0)
+
+    #prop = [i/j for i, j in zip(pim_tree, partitioned)]
+    #ax2 = ax.twinx()
+    #ax2.plot(x, prop, label="Improvements of PIM-Tree\n over Partitioned Skip List",
+    #    color='blue', ms=10, mfc='gold', lw=3, marker='o'
+    #)
+    #ax2.set_ylabel("Performance Improvement", fontsize=30)
+    #ax2.semilogy()
+    #plt.yticks(fontsize=30)
+    #ax2.legend(fontsize=30, bbox_to_anchor=(1.05, -0.19))
+    #for aa,bb in zip(x, prop):
+    #    plt.text(aa-0.1, bb*1.1, '%.2f' % bb, ha='center', va= 'bottom',
+    #        weight='demibold', fontsize=35
+    #    )
+    fig.tight_layout()
+    plt.savefig('pim_tree_different_threshold.pdf')
+    plt.show()
+
+filename = 'result.csv'
+
+if len(sys.argv) > 1:
+    filename = sys.argv[1]
+
+with open(filename, newline='') as csvfile:
     reader = csv.DictReader(csvfile)
     columns = reader.fieldnames
     for row in reader:
@@ -656,5 +721,7 @@ with open('result.csv', newline='') as csvfile:
 # communication_over_different_batch_size()
 # wikipedia()
 component_time()
+# communication_over_different_threshold()
 
 # todo
+# ycsb()
