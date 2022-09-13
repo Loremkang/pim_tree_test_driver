@@ -416,9 +416,12 @@ def energy():
         "Partitioned\n" + r"$\alpha=0.99$",
     ]
     y_labels = ["0", "2000", "4000", "6000", "8000", "10000", "12000"]
-    cpu_e = [717.08, 633.36, 538, 640.03, 2482.79, 8819.99]
-    comm = [226.28, 171.66, 194.09, 192.36, 721.07, 2540.11]
-    dpu_e = [538.7525529, 524.9919018, 504.4343074, 255.5341003, 246.3803621, 240.4565397]
+    # cpu_e = [717.08, 633.36, 538, 640.03, 2482.79, 8819.99]
+    # comm = [226.28, 171.66, 194.09, 192.36, 721.07, 2540.11]
+    # dpu_e = [538.7525529, 524.9919018, 504.4343074, 255.5341003, 246.3803621, 240.4565397]
+    cpu_e = [find_result(ds, s, "micro_scan", 1000000, "energy_cpu") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    comm = [find_result(ds, s, "micro_scan", 1000000, "energy_comm") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    dpu_e = [find_result(ds, s, "micro_scan", 1000000, "energy_pim") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
 
     b1 = list_sum(cpu_e, comm)
 
@@ -435,6 +438,7 @@ def energy():
     # ax.set_title('Energy Cost of 1M Scan Operations with size 100\n', fontsize=30)
     ax.legend(fontsize=25)
 
+    plt.savefig('energy/scan_energy.pdf')
     plt.show()
 
     #Search
@@ -447,10 +451,13 @@ def energy():
         "Partitioned\n" + r"$\alpha=0.6$",
         "Partitioned\n" + r"$\alpha=0.99$",
     ]
-    y_labels = ["0", "5000", "10000", "15000", "20000", "25000", "30000", "35000", "40000"]
-    cpu_e = [1004.72, 1216.78, 2164.59, 565.35,10392.22,27984.85]
-    comm = [336.06,410.59,1138.38, 175.96,2914.23,8288.11]
-    dpu_e = [4868.391501,4171.9532,3719.011423, 2902.79902,3081.659898,3169.39213]
+    y_labels = ["0", "10000", "20000", "30000", "40000", "50000"]
+    # cpu_e = [1004.72, 1216.78, 2164.59, 565.35,10392.22,27984.85]
+    # comm = [336.06,410.59,1138.38, 175.96,2914.23,8288.11]
+    # dpu_e = [4868.391501,4171.9532,3719.011423, 2902.79902,3081.659898,3169.39213]
+    cpu_e = [find_result(ds, s, "micro_predecessor", 1000000, "energy_cpu") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    comm = [find_result(ds, s, "micro_predecessor", 1000000, "energy_comm") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    dpu_e = [find_result(ds, s, "micro_predecessor", 1000000, "energy_pim") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
 
     b1 = list_sum(cpu_e, comm)
 
@@ -468,6 +475,7 @@ def energy():
     ax.legend(fontsize=25)
 
     # plt.show()
+    plt.savefig('energy/pred_energy.pdf')
     plt.show()
 
     # Insert
@@ -480,10 +488,13 @@ def energy():
         "Partitioned\n" + r"$\alpha=0.6$",
         "Partitioned\n" + r"$\alpha=0.99$",
     ]
-    y_labels = ["0", "10000", "20000", "30000", "40000", "50000", "60000"]
-    cpu_e = [3728.47,4101.35,3741.94, 530.24,7020.36,39444.44]
-    comm = [1130.66,1296.75,1160.92, 176.51,2144.02,11788.38]
-    dpu_e = [7701.138451,7306.843123,6485.494844, 4613.918288,4390.460219,4267.308624]
+    y_labels = ["0", "10000", "20000", "30000", "40000", "50000", "60000", "70000", "80000"]
+    # cpu_e = [3728.47,4101.35,3741.94, 530.24,7020.36,39444.44]
+    # comm = [1130.66,1296.75,1160.92, 176.51,2144.02,11788.38]
+    # dpu_e = [7701.138451,7306.843123,6485.494844, 4613.918288,4390.460219,4267.308624]
+    cpu_e = [find_result(ds, s, "micro_insert", 1000000, "energy_cpu") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    comm = [find_result(ds, s, "micro_insert", 1000000, "energy_comm") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    dpu_e = [find_result(ds, s, "micro_insert", 1000000, "energy_pim") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
 
     b1 = list_sum(cpu_e, comm)
 
@@ -499,7 +510,7 @@ def energy():
     ax.set_ylabel('Energy / J', fontsize=30)
     # ax.set_title('Energy Cost of 100M Insert Operations\n', fontsize=30)
     ax.legend(fontsize=25)
-
+    plt.savefig('energy/insert_energy.pdf')
     plt.show()
 
 def ycsb():
@@ -646,8 +657,9 @@ with open('result.csv', newline='') as csvfile:
 # throughput_over_bias_between_pim_and_range()
 # throughput_with_traditional_indexes()
 # effect_of_optimizations()
-communication()
+# communication()
 # communication_over_different_batch_size()
 # wikipedia()
+energy()
 
 # todo
