@@ -520,6 +520,7 @@ def ycsb():
     #comm_labels = ["PIM-tree", "Partitioned skip list"]
     comm_labels_ = ["", "", "Partitioned\n" + r'$\alpha=0$', "", "Partitioned\n" + r'$\alpha=1$', "", "PIM-tree\n" + r'$\alpha=0$', "", "PIM-tree\n" + r'$\alpha=1$']
     comm_labels = ["Partitioned\n" + r'$\alpha=0$', "Partitioned\n" + r'$\alpha=1$', "PIM-tree\n" + r'$\alpha=0$', "PIM-tree\n" + r'$\alpha=1$']
+    y_labels = ["0", "10", "20", "30", "40", "50"]
 
     workload_A = [find_result(idt, s, "ycsb_a", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
     # workload_A = [3.482651, 117.316418, 16.4503, 17.2022]
@@ -529,8 +530,8 @@ def ycsb():
     # workload_C = [2.926345, 227.026608, 7.01398, 8.01301]
     workload_D = [find_result(idt, s, "ycsb_d", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
     # workload_D = [3.744016, 10000, 21.7865, 22.1934]
-    # workload_E = [find_result(idt, s, "ycsb_e", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
-    workload_E = [5, 5, 5, 5]
+    workload_E = [find_result(idt, s, "ycsb_e", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
+    # workload_E = [5, 5, 5, 5]
 
     # workload_A = [100.0/l for l in workload_A]
     # workload_B = [100.0/l for l in workload_B]
@@ -541,7 +542,7 @@ def ycsb():
     fig, ax = plt.subplots(figsize=(15, 9))
     plt.grid(axis="y", linestyle='-.', zorder=0)
     #plt.semilogy()
-    plt.yticks(fontsize=30)
+    # plt.yticks(fontsize=30)
 
     x = np.arange(len(comm_labels))
     x1 = x - 2 * width
@@ -556,10 +557,11 @@ def ycsb():
     rects4 = ax.bar(x4, workload_D, width, label=r'YCSB Workload D', edgecolor='black', zorder=3)
     rects5 = ax.bar(x5, workload_E, width, label=r'YCSB Workload E', edgecolor='black', zorder=3)
 
-    ax.set_ylabel('Performance (Melement/s)', fontsize=30)
-    ax.set_title('Impact of Optimizations', fontsize=30)
+    ax.set_ylabel('Throughput (Melement/s)', fontsize=33)
+    # ax.set_title('Impact of Optimizations', fontsize=30)
     plt.gca().set_xticklabels(comm_labels_, fontsize=30)
-    ax.legend(fontsize=23, bbox_to_anchor=(0.65,0.62))
+    plt.gca().set_yticklabels(y_labels, fontsize=30)
+    ax.legend(fontsize=26, bbox_to_anchor=(0.62,0.6))
     fig.tight_layout()
 
     plt.savefig('YCSB.pdf')
@@ -660,6 +662,7 @@ with open('result.csv', newline='') as csvfile:
 # communication()
 # communication_over_different_batch_size()
 # wikipedia()
-energy()
+# energy()
+ycsb()
 
 # todo
