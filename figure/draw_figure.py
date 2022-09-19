@@ -174,10 +174,8 @@ def throughput_with_traditional_indexes():
     type_count = 4
 
     pim_tree = np.array([find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
-    # ab_tree = np.array([find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
-    ab_tree = [18.5271, 20.6315, 2.66731, 2.81355]
-    # bst = np.array([find_result("pim_tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
-    bst = [6.2759, 7.13796, 2.74216, 2.8923]
+    ab_tree = np.array([find_result("ab-tree", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
+    bst = np.array([find_result("bst", s, opt, 1000000, "throughput") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]) / 1e6
     fig, ax = plt.subplots(figsize=(14, 8))
     plt.grid(axis="y", linestyle='-.', zorder=0)
     x = np.arange(type_count)
@@ -323,13 +321,9 @@ def communication():
     # range_dram = [min(i, 4000.0) for i in range_dram]
     # range_dram[1] = 0
 
-    # ab_dram = [find_result("ab-tree", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
-    ab_dram = [17.9261, 14.8452, 56.9125, 52.3052]
-    ab_dram = [i * 64 for i in ab_dram]
+    ab_dram = [find_result("ab-tree", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
     
-    # bst_dram = [find_result("bst", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
-    bst_dram = [36.857, 30.7022, 43.7481, 39.8015]
-    bst_dram = [i * 64 for i in bst_dram]
+    bst_dram = [find_result("bst", s, opt, 1000000, "comm_dram") for opt in ("micro_predecessor", "micro_insert") for s in (0.0, 1.0)]
 
     fig, ax = plt.subplots(figsize=(14, 8))
     plt.grid(axis="y", linestyle='-.', zorder=0)
@@ -424,9 +418,12 @@ def energy():
         "Partitioned\n" + r"$\alpha=0.99$",
     ]
     y_labels = ["0", "2000", "4000", "6000", "8000", "10000", "12000"]
-    cpu_e = [717.08, 633.36, 538, 640.03, 2482.79, 8819.99]
-    comm = [226.28, 171.66, 194.09, 192.36, 721.07, 2540.11]
-    dpu_e = [538.7525529, 524.9919018, 504.4343074, 255.5341003, 246.3803621, 240.4565397]
+    # cpu_e = [717.08, 633.36, 538, 640.03, 2482.79, 8819.99]
+    # comm = [226.28, 171.66, 194.09, 192.36, 721.07, 2540.11]
+    # dpu_e = [538.7525529, 524.9919018, 504.4343074, 255.5341003, 246.3803621, 240.4565397]
+    cpu_e = [find_result(ds, s, "micro_scan", 1000000, "energy_cpu") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    comm = [find_result(ds, s, "micro_scan", 1000000, "energy_comm") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    dpu_e = [find_result(ds, s, "micro_scan", 1000000, "energy_pim") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
 
     b1 = list_sum(cpu_e, comm)
 
@@ -443,6 +440,7 @@ def energy():
     # ax.set_title('Energy Cost of 1M Scan Operations with size 100\n', fontsize=30)
     ax.legend(fontsize=25)
 
+    plt.savefig('energy/scan_energy.pdf')
     plt.show()
 
     #Search
@@ -455,10 +453,13 @@ def energy():
         "Partitioned\n" + r"$\alpha=0.6$",
         "Partitioned\n" + r"$\alpha=0.99$",
     ]
-    y_labels = ["0", "5000", "10000", "15000", "20000", "25000", "30000", "35000", "40000"]
-    cpu_e = [1004.72, 1216.78, 2164.59, 565.35,10392.22,27984.85]
-    comm = [336.06,410.59,1138.38, 175.96,2914.23,8288.11]
-    dpu_e = [4868.391501,4171.9532,3719.011423, 2902.79902,3081.659898,3169.39213]
+    y_labels = ["0", "10000", "20000", "30000", "40000", "50000"]
+    # cpu_e = [1004.72, 1216.78, 2164.59, 565.35,10392.22,27984.85]
+    # comm = [336.06,410.59,1138.38, 175.96,2914.23,8288.11]
+    # dpu_e = [4868.391501,4171.9532,3719.011423, 2902.79902,3081.659898,3169.39213]
+    cpu_e = [find_result(ds, s, "micro_predecessor", 1000000, "energy_cpu") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    comm = [find_result(ds, s, "micro_predecessor", 1000000, "energy_comm") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    dpu_e = [find_result(ds, s, "micro_predecessor", 1000000, "energy_pim") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
 
     b1 = list_sum(cpu_e, comm)
 
@@ -476,6 +477,7 @@ def energy():
     ax.legend(fontsize=25)
 
     # plt.show()
+    plt.savefig('energy/pred_energy.pdf')
     plt.show()
 
     # Insert
@@ -488,10 +490,13 @@ def energy():
         "Partitioned\n" + r"$\alpha=0.6$",
         "Partitioned\n" + r"$\alpha=0.99$",
     ]
-    y_labels = ["0", "10000", "20000", "30000", "40000", "50000", "60000"]
-    cpu_e = [3728.47,4101.35,3741.94, 530.24,7020.36,39444.44]
-    comm = [1130.66,1296.75,1160.92, 176.51,2144.02,11788.38]
-    dpu_e = [7701.138451,7306.843123,6485.494844, 4613.918288,4390.460219,4267.308624]
+    y_labels = ["0", "10000", "20000", "30000", "40000", "50000", "60000", "70000", "80000"]
+    # cpu_e = [3728.47,4101.35,3741.94, 530.24,7020.36,39444.44]
+    # comm = [1130.66,1296.75,1160.92, 176.51,2144.02,11788.38]
+    # dpu_e = [7701.138451,7306.843123,6485.494844, 4613.918288,4390.460219,4267.308624]
+    cpu_e = [find_result(ds, s, "micro_insert", 1000000, "energy_cpu") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    comm = [find_result(ds, s, "micro_insert", 1000000, "energy_comm") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
+    dpu_e = [find_result(ds, s, "micro_insert", 1000000, "energy_pim") for ds in ("pim_tree", "range_partitioning") for s in [0.0, 0.6, 1.0] ]
 
     b1 = list_sum(cpu_e, comm)
 
@@ -507,16 +512,17 @@ def energy():
     ax.set_ylabel('Energy / J', fontsize=30)
     # ax.set_title('Energy Cost of 100M Insert Operations\n', fontsize=30)
     ax.legend(fontsize=25)
-
+    plt.savefig('energy/insert_energy.pdf')
     plt.show()
 
 def ycsb():
     # YCSB
     width = 0.15
-    #comm_labels_ = ["", "PIM-Tree", "", "Partitioned skip list"]
-    #comm_labels = ["PIM-Tree", "Partitioned skip list"]
-    comm_labels_ = ["", "", "Partitioned\n" + r'$\alpha=0$', "", "Partitioned\n" + r'$\alpha=1$', "", "PIM-Tree\n" + r'$\alpha=0$', "", "PIM-Tree\n" + r'$\alpha=1$']
+    #comm_labels_ = ["", "PIM-tree", "", "Partitioned skip list"]
+    #comm_labels = ["PIM-tree", "Partitioned skip list"]
+    comm_labels_ = ["", "", "Partitioned\n" + r'$\alpha=0$', "", "Partitioned\n" + r'$\alpha=1$', "", "PIM-tree\n" + r'$\alpha=0$', "", "PIM-tree\n" + r'$\alpha=1$']
     comm_labels = ["Partitioned\n" + r'$\alpha=0$', "Partitioned\n" + r'$\alpha=1$', "PIM-Tree\n" + r'$\alpha=0$', "PIM-Tree\n" + r'$\alpha=1$']
+    y_labels = ["0", "10", "20", "30", "40", "50"]
 
     workload_A = [find_result(idt, s, "ycsb_a", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
     # workload_A = [3.482651, 117.316418, 16.4503, 17.2022]
@@ -526,8 +532,8 @@ def ycsb():
     # workload_C = [2.926345, 227.026608, 7.01398, 8.01301]
     workload_D = [find_result(idt, s, "ycsb_d", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
     # workload_D = [3.744016, 10000, 21.7865, 22.1934]
-    # workload_E = [find_result(idt, s, "ycsb_e", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
-    workload_E = [5, 5, 5, 5]
+    workload_E = [find_result(idt, s, "ycsb_e", 1000000, "throughput") for idt in ("range_partitioning", "pim_tree") for s in (0, 1.0)]
+    # workload_E = [5, 5, 5, 5]
 
     # workload_A = [100.0/l for l in workload_A]
     # workload_B = [100.0/l for l in workload_B]
@@ -538,7 +544,7 @@ def ycsb():
     fig, ax = plt.subplots(figsize=(15, 9))
     plt.grid(axis="y", linestyle='-.', zorder=0)
     #plt.semilogy()
-    plt.yticks(fontsize=30)
+    # plt.yticks(fontsize=30)
 
     x = np.arange(len(comm_labels))
     x1 = x - 2 * width
@@ -553,10 +559,11 @@ def ycsb():
     rects4 = ax.bar(x4, workload_D, width, label=r'YCSB Workload D', edgecolor='black', zorder=3)
     rects5 = ax.bar(x5, workload_E, width, label=r'YCSB Workload E', edgecolor='black', zorder=3)
 
-    ax.set_ylabel('Performance (Melement/s)', fontsize=30)
-    ax.set_title('Impact of Optimizations', fontsize=30)
+    ax.set_ylabel('Throughput (Melement/s)', fontsize=33)
+    # ax.set_title('Impact of Optimizations', fontsize=30)
     plt.gca().set_xticklabels(comm_labels_, fontsize=30)
-    ax.legend(fontsize=23, bbox_to_anchor=(0.65,0.62))
+    plt.gca().set_yticklabels(y_labels, fontsize=30)
+    ax.legend(fontsize=26, bbox_to_anchor=(0.62,0.6))
     fig.tight_layout()
 
     plt.savefig('YCSB.pdf')
@@ -720,8 +727,6 @@ with open(filename, newline='') as csvfile:
 # communication()
 # communication_over_different_batch_size()
 # wikipedia()
-component_time()
-# communication_over_different_threshold()
-
-# todo
+# energy()
 # ycsb()
+# component_time()
